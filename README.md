@@ -93,3 +93,6 @@ Planned extensions include:
 - Better interpretability of recommended moves
 - Visualization tools for model decisions
 - Performance comparisons with classical Sudoku solvers
+
+## License
+This project is licensed under the Apache License 2.0.
