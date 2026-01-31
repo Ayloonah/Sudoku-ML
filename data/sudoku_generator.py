@@ -108,6 +108,57 @@ def fill_grid(grid: Grid) -> bool:
     
     return False
 
+def is_valid_group(values: List[int]) -> bool:
+    """
+    Validates that a given group of 9 digits has no zeroes and no repeat numbers.
+
+    Parameters:
+        values (List): 9 digits taken from the Sudoku grid.
+
+    Returns:
+        bool: True if there are no repeat digits, False otherwise.
+    """
+    # Remove the zeroes 
+    numbers = [n for n in values if n != 0]
+
+    # Check for duplicates
+    no_duplicates = len(numbers) == len(set(numbers))
+
+    return no_duplicates
+
+def is_valid_grid(grid: Grid) -> bool:
+    """
+    Validates that a given 9x9 Sudoku board has no zeroes and no illegal moves.
+
+    Parameters:
+        grid (Grid): The Sudoku grid.
+
+    Returns:
+        bool: True if the board is valid, False otherwise.
+    """
+    # Validate rows
+    for row in grid:
+        if not is_valid_group(row):
+            return False
+
+    # Validate columns
+    for col in range(9):
+        values = [grid[row][col] for row in range(9)]
+        if not is_valid_group(values):
+            return False
+        
+    # Validate 3x3 boxes
+    for row in range(0, 9, 3):
+        for col in range(0, 9, 3):
+            values = [grid[r][c]
+                      for r in range(row, row + 3)
+                      for c in range(col, col + 3)]
+            if not is_valid_group(values):
+                return False
+            
+    # If everything is valid
+    return True
+
 def generate_filled_grid() -> Grid:
     """
     Generate a completely filled Sudoku grid.
@@ -115,10 +166,12 @@ def generate_filled_grid() -> Grid:
     Returns:
         grid (Grid): The Sudoku grid.
     """
-    grid: Grid = create_empty_grid()
-    fill_grid(grid)
+    while True:
+        grid: Grid = create_empty_grid()
+        fill_grid(grid)
 
-    return grid
+        if is_valid_grid(grid):
+            return grid
     
 def main():
     grid: Grid = generate_filled_grid()
