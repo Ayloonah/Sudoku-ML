@@ -3,6 +3,49 @@ from typing import List, Optional, Tuple
 
 Grid = List[List[int]]
 
+def box_index(row: int, col: int) -> int:
+    """
+    Calculate the index of the 3x3 box the row & col index is in.
+
+    Parameters:
+        row (int): Row index of the cell.
+        col (int): Column index of the cell.
+
+    Returns:
+        int: The index of the box we are looking at.
+    """
+    return (row // 3) * 3 + (col // 3)
+
+def init_used_arrays(grid: Grid):
+    """
+    From our grid, generate three used arrays that keep track of where
+    the values currently are in the Sudoku grid.
+
+    Parameters:
+        grid (Grid): The Sudoku grid.
+
+    Returns:
+        Tuple[List[List[bool]], List[List[bool]], List[List[bool]]]:
+        A tuple containing the three used arrays tracking the grid's values.
+    """
+    # Array initialization
+    row_used = [[False] * 10 for _ in range(9)]
+    col_used = [[False] * 10 for _ in range(9)]
+    box_used = [[False] * 10 for _ in range(9)]
+
+    # Store the grid's values within the used arrays
+    for row in range(9):
+        for col in range(9):
+            value = grid[row][col]
+            if value == 0:
+                continue
+            box = box_index(row, col)
+            row_used[row][value] = True
+            col_used[col][value] = True
+            box_used[box][value] = True
+
+    return row_used, col_used, box_used
+
 def create_empty_grid() -> Grid:
     """
     Create a 9x9 Sudoku grid filled with zeroes.
@@ -18,30 +61,58 @@ def create_empty_grid() -> Grid:
 
     return grid
 
-def find_empty_cell(grid: Grid) -> Optional[Tuple[int, int]]:
+def find_best_empty_cell(grid: Grid, row_used, col_used, 
+                         box_used) -> Optional[Tuple[int, int, List[int]]]:
     """
-    Find the next empty cell in the grid.
+    Find the empty cell in the grid with the fewest possible values, if any.
 
     Parameters:
         grid (Grid): The Sudoku grid.
+        row_used: Boolean array representing the values in each row.
+        col_used: Boolean array representing the values in each col.
+        box_used: Boolean array representing the values in each 3x3 box.
 
     Returns:
-        Optional[Tuple[int, int]]: A tuple (row, col) of the next empty cell,
-        or None if the grid is full.
+        Optional[Tuple[int, int, List[int]]]: A tuple (row, col, int list) of the
+        next best empty cell and its potential values, or None if the grid is full.
     """
+    # Variable initialization
+    best_empty_cell = None
+    best_empty_cell_values: List[int] = []
+    
+    # Find the cell with the least amount of possible valid moves
     for row in range(9):
         for col in range(9):
-            if grid[row][col] == 0:
-                return row, col
-            
-    return None
+            # Skip the cell if it is not empty
+            if grid[row][col] != 0:
+                continue
 
-def is_valid_move(grid: Grid, row: int, col: int, value: int) -> bool:
+            # Find the current cell's possible valid moves
+            values = [val for val in range(1, 10) if 
+                      is_valid_move(row_used, col_used, box_used, 
+                                    row, col, val)]
+            
+            if best_empty_cell is None or len(values) < len(best_empty_cell_values):
+                best_empty_cell = (row, col)
+                best_empty_cell_values = values
+
+                if len(best_empty_cell_values) <= 1:
+                    return row, col, best_empty_cell_values
+            
+    if best_empty_cell is None:
+        return None
+    
+    return best_empty_cell[0], best_empty_cell[1], best_empty_cell_values
+
+def is_valid_move(row_used, col_used, box_used, row: int, col: int,
+                   value: int) -> bool:
     """
     Check whether placing a value at (row, col) follows Sudoku rules.
 
     Parameters:
-        grid (Grid): The Sudoku grid.
+        row_used: Boolean array representing the values in each row.
+        col_used: Boolean array representing the values in each col.
+        box_used: Boolean array representing the values in each 3x3 box.
         row (int): Row index of the cell.
         col (int): Column index of the cell.
         value (int): Value to validate (1–9).
@@ -49,115 +120,87 @@ def is_valid_move(grid: Grid, row: int, col: int, value: int) -> bool:
     Returns:
         bool: True if the move is valid, False otherwise.
     """
-    # If the cell is currently empty
-    if grid[row][col] == 0:
-        # Check if the value is already in the row
-        for c in range(9):
-            if (grid[row][c] == value):
-                return False
+    # Find the box index
+    box = box_index(row, col)
 
-        # Check if the value is already in the col
-        for r in range(9):
-            if (grid[r][col] == value):
-                return False
+    # Return False in the value is in any of the three arrays, True otherwise
+    return (not row_used[row][value]
+            and not col_used[col][value]
+            and not box_used[box][value])
 
-        # Now check the 3x3 box
-        box_corner_row = (row // 3) * 3
-        box_corner_col = (col // 3) * 3
-
-        for r in range(box_corner_row, box_corner_row + 3):
-            for c in range(box_corner_col, box_corner_col + 3):
-                if (grid[r][c] == value):
-                    return False
-
-        # If the value is currently not in row, col, or 3x3 box, valid move
-        return True
-    
-    # Otherwise, invalid move
-    return False
-
-def fill_grid(grid: Grid) -> bool:
+def place(grid: Grid, row_used, col_used, box_used, row: int, col: int,
+          value: int):
     """
-    Fill up the grid as per Sudoku rules.
+    Place a value at the designated row, col index and updates the used arrays.
 
     Parameters:
         grid (Grid): The Sudoku grid.
+        row_used: Boolean array representing the values in each row.
+        col_used: Boolean array representing the values in each col.
+        box_used: Boolean array representing the values in each 3x3 box.
+        row (int): Row index of the cell.
+        col (int): Column index of the cell.
+        value (int): Value to validate (1–9).
+    """
+    grid[row][col] = value
+    box = box_index(row, col)
+    row_used[row][value] = True
+    col_used[col][value] = True
+    box_used[box][value] = True
+
+def remove(grid: Grid, row_used, col_used, box_used, row: int, col: int,
+          value: int):
+    """
+    Remove a value from the designated row, col index and updates the used arrays.
+
+    Parameters:
+        grid (Grid): The Sudoku grid.
+        row_used: Boolean array representing the values in each row.
+        col_used: Boolean array representing the values in each col.
+        box_used: Boolean array representing the values in each 3x3 box.
+        row (int): Row index of the cell.
+        col (int): Column index of the cell.
+        value (int): Value to validate (1–9).
+    """
+    grid[row][col] = 0
+    box = box_index(row, col)
+    row_used[row][value] = False
+    col_used[col][value] = False
+    box_used[box][value] = False
+
+def fill_grid(grid: Grid, row_used, col_used, box_used) -> bool:
+    """
+    Fill up the grid.
+
+    Parameters:
+        grid (Grid): The Sudoku grid.
+        row_used: Boolean array representing the values in each row.
+        col_used: Boolean array representing the values in each col.
+        box_used: Boolean array representing the values in each 3x3 box.
 
     Returns:
         bool: True if the grid is successfully filled.
     """
-    # Variable declaration/initialization
-    next_cell =  find_empty_cell(grid)
-    values = list(range(1, 10))
-    rd.shuffle(values)
-    
-    # Base case
+    # Check if there is an empty cell left
+    next_cell = find_best_empty_cell(grid, row_used, col_used, box_used)
+        
+    # If none, return
     if next_cell is None:
         return True
     
-    # Otherwise, fill up the cell
-    row, col = next_cell
+    # If there is one, fill up the cell
+    row, col, values = next_cell
+    rd.shuffle(values)
 
     for val in values:
-        if is_valid_move(grid, row, col, val):
-            grid[row][col] = val
+        place(grid, row_used, col_used, box_used, row, col, val)
 
-            if fill_grid(grid):
-                return True
-            grid[row][col] = 0
+        if fill_grid(grid, row_used, col_used, box_used):
+            return True
+        
+        remove(grid, row_used, col_used, box_used, row, col, val)
     
     return False
-
-def is_valid_group(values: List[int]) -> bool:
-    """
-    Validates that a given group of 9 digits has no zeroes and no repeat numbers.
-
-    Parameters:
-        values (List): 9 digits taken from the Sudoku grid.
-
-    Returns:
-        bool: True if there are no repeat digits, False otherwise.
-    """
-    # Remove the zeroes 
-    numbers = [n for n in values if n != 0]
-
-    # Check for duplicates
-    no_duplicates = len(numbers) == len(set(numbers))
-
-    return no_duplicates
-
-def is_valid_grid(grid: Grid) -> bool:
-    """
-    Validates that a given 9x9 Sudoku board has no zeroes and no illegal moves.
-
-    Parameters:
-        grid (Grid): The Sudoku grid.
-
-    Returns:
-        bool: True if the board is valid, False otherwise.
-    """
-    # Validate rows
-    for row in grid:
-        if not is_valid_group(row):
-            return False
-
-    # Validate columns
-    for col in range(9):
-        values = [grid[row][col] for row in range(9)]
-        if not is_valid_group(values):
-            return False
-        
-    # Validate 3x3 boxes
-    for row in range(0, 9, 3):
-        for col in range(0, 9, 3):
-            values = [grid[r][c]
-                      for r in range(row, row + 3)
-                      for c in range(col, col + 3)]
-            if not is_valid_group(values):
-                return False
-            
-    # If everything is valid
-    return True
 
 def generate_filled_grid() -> Grid:
     """
@@ -166,12 +209,11 @@ def generate_filled_grid() -> Grid:
     Returns:
         grid (Grid): The Sudoku grid.
     """
-    while True:
-        grid: Grid = create_empty_grid()
-        fill_grid(grid)
-
-        if is_valid_grid(grid):
-            return grid
+    grid: Grid = create_empty_grid()
+    row_used, col_used, box_used = init_used_arrays(grid)
+    fill_grid(grid, row_used, col_used, box_used)
+    
+    return grid
     
 def main():
     grid: Grid = generate_filled_grid()
