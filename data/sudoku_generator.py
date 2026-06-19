@@ -16,7 +16,7 @@ def box_index(row: int, col: int) -> int:
     """
     return (row // 3) * 3 + (col // 3)
 
-def init_used_arrays(grid: Grid):
+def init_used_arrays(grid: Grid) -> Tuple[List[List[bool]], List[List[bool]], List[List[bool]]]:
     """
     From our grid, generate three used arrays that keep track of where
     the values currently are in the Sudoku grid.
@@ -28,7 +28,6 @@ def init_used_arrays(grid: Grid):
         Tuple[List[List[bool]], List[List[bool]], List[List[bool]]]:
         A tuple containing the three used arrays tracking the grid's values.
     """
-    # Array initialization
     row_used = [[False] * 10 for _ in range(9)]
     col_used = [[False] * 10 for _ in range(9)]
     box_used = [[False] * 10 for _ in range(9)]
@@ -53,13 +52,7 @@ def create_empty_grid() -> Grid:
     Returns:
         Grid: An empty 9x9 grid.
     """
-    grid: Grid = []
-
-    for _ in range(9):
-        row: List[int] = [0] * 9
-        grid.append(row)
-
-    return grid
+    return [[0] * 9 for _ in range(9)]
 
 def find_best_empty_cell(grid: Grid, row_used, col_used, 
                          box_used) -> Optional[Tuple[int, int, List[int]]]:
@@ -76,7 +69,6 @@ def find_best_empty_cell(grid: Grid, row_used, col_used,
         Optional[Tuple[int, int, List[int]]]: A tuple (row, col, int list) of the
         next best empty cell and its potential values, or None if the grid is full.
     """
-    # Variable initialization
     best_empty_cell = None
     best_empty_cell_values: List[int] = []
     
@@ -92,16 +84,24 @@ def find_best_empty_cell(grid: Grid, row_used, col_used,
                       is_valid_move(row_used, col_used, box_used, 
                                     row, col, val)]
             
+            # If there are no possible values in this cell, return None
+            if len(values) == 0:
+                return None
+
+            # Otherwise, recurse to find the empty cell with the least amount of values
             if best_empty_cell is None or len(values) < len(best_empty_cell_values):
                 best_empty_cell = (row, col)
                 best_empty_cell_values = values
 
+                # If the cell can only hold one value, then return it right away
                 if len(best_empty_cell_values) <= 1:
                     return row, col, best_empty_cell_values
-            
+    
+    # If grid is full
     if best_empty_cell is None:
         return None
     
+    # Once we've found the best empty cell, return it
     return best_empty_cell[0], best_empty_cell[1], best_empty_cell_values
 
 def is_valid_move(row_used, col_used, box_used, row: int, col: int,
@@ -123,7 +123,7 @@ def is_valid_move(row_used, col_used, box_used, row: int, col: int,
     # Find the box index
     box = box_index(row, col)
 
-    # Return False in the value is in any of the three arrays, True otherwise
+    # Return False if the value is in any of the three arrays, True otherwise
     return (not row_used[row][value]
             and not col_used[col][value]
             and not box_used[box][value])
