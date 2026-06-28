@@ -16,6 +16,9 @@ DIFFICULTY_CONFIG = {
     "expert": {"min_clues": 22, "max_clues": 27, "max_backtracks": 100},
 }
 
+# How many puzzles per JSON file
+CHUNK_SIZE = 1000
+
 def count_solutions(grid: Grid, row_used, col_used, box_used, limit: int = 2) -> int:
     """
     Count the number of solutions for a given Sudoku grid, up to a specified limit.
@@ -173,7 +176,7 @@ def generate_puzzles(count: int, difficulty: str) -> List[Dict]:
 
     return puzzles
 
-def save_puzzles(puzzles: List[Dict], difficulty: str, chunk_size: int = 1000) -> None:
+def save_puzzles(puzzles: List[Dict], difficulty: str) -> None:
     """
     Save generated puzzles to JSON files in the data/metadata/ directory,
     split into chunks of a specified size. Files are named by difficulty and
@@ -182,9 +185,29 @@ def save_puzzles(puzzles: List[Dict], difficulty: str, chunk_size: int = 1000) -
     Parameters:
         puzzles (List[Dict]): The list of puzzle dictionaries to save.
         difficulty (str): The difficulty label used for naming the output files.
-        chunk_size (int): The number of puzzles per file. Defaults to 1000.
 
     Returns:
         None
     """
-    
+    # Find current iteration of the difficulty's metadata files, if any, and store it
+    json_path = 'data/metadata/' + difficulty + '_%03d.json'
+    i = 1
+
+    while os.path.exists(json_path % i):
+        i = i * 2
+
+    a, b = (i // 2, i)
+    while a + 1 < b:
+        c = (a + b) // 2
+        a, b = (c, b) if os.path.exists(json_path % c) else (a, c)
+
+    next_int = b
+
+    for chunk in range(0, len(puzzles), CHUNK_SIZE):
+        curr_chunk = puzzles[chunk : chunk + CHUNK_SIZE]
+        filename = f"data/metadata/{difficulty}_{next_int:03d}.json"
+
+        with open(filename, "w", encoding = "utf-8") as f:
+            json.dump(curr_chunk, f)
+
+        next_int += 1
